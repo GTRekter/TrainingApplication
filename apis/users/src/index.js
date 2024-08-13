@@ -3,6 +3,8 @@ require('dotenv').config(); // Load environment variables
 var express = require('express');
 const mysql = require("mysql2/promise");
 const bodyParser = require("body-parser");
+const cors = require('cors');
+
 var app = express();
 var port = process.env.port || 1337;
 
@@ -15,8 +17,28 @@ const dbConfig = {
 };
 const pool = mysql.createPool(dbConfig);
 
+// Enable CORS for all routes
+app.use(cors()); 
+
 // Middleware
 app.use(bodyParser.json());
+
+// Health check endpoint
+app.get("/health", function (req, res) {
+    res.json({ Status: "healthy" });
+});
+
+// Liveness probe endpoint
+app.get('/healthz', (req, res) => {
+    res.status(200).send('OK');
+});
+  
+// Readiness probe endpoint
+app.get('/readyz', (req, res) => {
+    pool.query('SELECT 1')
+      .then(() => res.status(200).send('OK'))
+      .catch(() => res.status(500).send('Not OK'));
+});
 
 // Create a new user
 app.post("/users", async (req, res) => {
@@ -88,10 +110,6 @@ app.delete("/users/:id", async (req, res) => {
         console.error("Error deleting user", err.stack);
         res.status(500).json({ error: "Failed to delete user" });
     }
-});
-
-app.get("/healthcheck", function (req, res) {
-    res.json({ Status: "healthy" });
 });
 
 app.listen(port, () => {

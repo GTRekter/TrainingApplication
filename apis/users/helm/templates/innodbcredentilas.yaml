@@ -1,0 +1,5 @@
+credentials:
+  root:
+    user: root
+    password: sakila
+    host: "%"
