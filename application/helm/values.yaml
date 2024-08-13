@@ -21,6 +21,15 @@ ingress:
   #       - example.com
   #     secretName: example-tls
   rules:
+    - host: 
+      paths:
+        - path: /
+          pathType: Prefix
+          servicePort: 80
+          # servicePortName: http
+        # - path: /secure
+        #   pathType: Prefix
+        #   servicePortName: https
     - host: vastaya.tech
       paths:
         - path: /
