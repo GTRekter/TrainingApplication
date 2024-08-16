@@ -26,10 +26,19 @@ ingress:
         - path: /
           pathType: Prefix
           servicePort: 80
-          # servicePortName: http
-        # - path: /secure
-        #   pathType: Prefix
-        #   servicePortName: https
+        - path: /api/users(/|$)(.*)
+          pathType: ImplementationSpecific
+          serviceName: users-service
+          servicePort: 80
+    - host: 
+      paths:
+        - path: /
+          pathType: Prefix
+          servicePort: 80
+        - path: /api/users(/|$)(.*)
+          pathType: ImplementationSpecific
+          serviceName: users-service
+          servicePort: 80
 
 # ==============================================================================
 # Service values
@@ -80,12 +89,15 @@ container:
   }
   image:
     repository: acrtrainingdev.azurecr.io
-    name: app-application 
+    name: application 
     pullPolicy: IfNotPresent
     tag: latest
   env:
+  # This won't work because the users-service is not exposed to the internet and the React app is running in the browser
+  # - name: REACT_APP_USERS_API_URL
+  #   value: http://users-service.default.svc.cluster.local:3001
   - name: REACT_APP_USERS_API_URL
-    value: http://user-service.default.svc.cluster.local:3001
+    value: http://20.249.194.31/api/users
   livenessProbe:
     httpGet:
       path: /

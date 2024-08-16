@@ -15,8 +15,8 @@ export default class Users extends Component {
 
     componentDidMount() {
         console.log("Fetching users from the API");
-        console.log("API URL:", process.env.REACT_APP_USERS_API_URL + '/users');
-        fetch(process.env.REACT_APP_USERS_API_URL + '/users')
+        console.log("API URL:", process.env.REACT_APP_USERS_API_URL);
+        fetch(process.env.REACT_APP_USERS_API_URL)
             .then(res => res.json())
             .then(users => this.setState({ users }))
             .catch(error => console.error('Error fetching users:', error));

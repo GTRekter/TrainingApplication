@@ -64,5 +64,46 @@ The documentation is available at the following [link](https://dev.mysql.com/doc
 ```
 helm repo add mysql-operator https://mysql.github.io/mysql-operator
 helm repo update
-helm install mysql-operator mysql-operator/mysql-operator --namespace mysql-operator --create-namespace
+helm install mysql-operator mysql-operator/mysql-operator -n mysql-operator --values values.yaml --create-namespace
+helm install mysql-cluster mysql-operator/mysql-innodbcluster --set tls.useSelfSigned=true --values values.yaml -n default
+```
+# Create test DB
+```
+ kubectl run --rm -it myshell --image=container-registry.oracle.com/mysql/community-operator -- mysqlsh
+If you don't see a command prompt, try pressing enter.
+
+ MySQL  SQL > \connect root@mysql-cluster
+Creating a session to 'root@mysql-cluster'
+Please provide the password for 'root@mysql-cluster': ******
+Save password for 'root@mysql-cluster'? [Y]es/[N]o/Ne[v]er (default No): yes
+Fetching global names for auto-completion... Press ^C to stop.
+Your MySQL connection id is 0
+Server version: 9.0.1 MySQL Community Server - GPL
+No default schema selected; type \use <schema> to set one.
+ MySQL  mysql-cluster:3306 ssl  SQL > CREATE DATABASE testdb;
+  MySQL  mysql-cluster:3306 ssl  SQL > CREATE TABLE IF NOT EXISTS users (
+                                   ->   id INT AUTO_INCREMENT PRIMARY KEY,
+                                   ->   name VARCHAR(255) NOT NULL,
+                                   ->   email VARCHAR(255) NOT NULL UNIQUE
+                                   -> );
+ERROR: 1046 (3D000): No database selected
+ MySQL  mysql-cluster:3306 ssl  SQL > USE testdb;
+Default schema set to `testdb`.
+Fetching global names, object names from `testdb` for auto-completion... Press ^C to stop.
+ MySQL  mysql-cluster:3306 ssl  testdb  SQL > CREATE TABLE IF NOT EXISTS users (
+                                           ->   id INT AUTO_INCREMENT PRIMARY KEY,
+                                           ->   name VARCHAR(255) NOT NULL,
+                                           ->   email VARCHAR(255) NOT NULL UNIQUE
+                                           -> );
+Query OK, 0 rows affected (0.0515 sec)
+ MySQL  mysql-cluster:3306 ssl  testdb  SQL > INSERT INTO users (name, email) VALUES ('John Doe', 'johndoe@example.com');
+Query OK, 1 row affected (0.0088 sec)
+ MySQL  mysql-cluster:3306 ssl  testdb  SQL > SELECT * FROM users;
++----+----------+---------------------+
+| id | name     | email               |
++----+----------+---------------------+
+|  1 | John Doe | johndoe@example.com |
++----+----------+---------------------+
+1 row in set (0.0007 sec)
+ MySQL  mysql-cluster:3306 ssl  testdb  SQL > quit
 ```

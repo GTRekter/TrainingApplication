@@ -31,7 +31,11 @@ spec:
             pathType: {{ .pathType }}
             backend:
               service:
+                {{- if .serviceName }}
+                name: {{ .serviceName }}
+                {{- else }}
                 name: {{ include "helm.fullname" $ }}-service
+                {{- end }}
                 port:
                   number: {{ .servicePort }}
                   {{- if .servicePortName }}
