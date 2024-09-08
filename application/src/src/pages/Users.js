@@ -6,7 +6,6 @@ export default class Users extends Component {
         users: [],
     };
 
-    // Bind methods in the constructor
     constructor(props) {
         super(props);
         this.onClickEditUser = this.onClickEditUser.bind(this);

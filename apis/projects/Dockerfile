@@ -1,6 +1,7 @@
-FROM golang:1.14-alpine
-RUN mkdir /app
-COPY . /app
-WORKDIR /app
-RUN go build -o server . 
-CMD [ "/app/server" ]
+FROM node:20
+WORKDIR /usr/src/app
+COPY /src/package*.json ./
+RUN npm install
+COPY /src .
+EXPOSE 8080
+CMD [ "node", "index.js" ]
