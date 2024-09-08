@@ -48,7 +48,7 @@ podman run application:latest -p 8080:80
 ```
 sudo bash -c 'echo "unqualified-search-registries = [\"docker.io\"]" >> /etc/containers/registries.conf'
 ```
-### Helm
+## Helm
 Add the NGINX Ingress Helm repository and install the Ingress controller:
 ```
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
@@ -63,7 +63,7 @@ kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingre
 Deploy the application using Helm:
 ```
 cd ~/Repositories/Vastaya/application
-helm install application ./helm/
+helm install application --values ./helm/values.yaml ../helm/
 ```
 
 
