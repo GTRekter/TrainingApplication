@@ -1,57 +1,66 @@
-# Environment configuration
-## Minikube
+# Environment Configuration and Deployment Guide
+This guide covers how to set up and deploy an application using Minikube with different drivers and container runtimes, including Docker and Podman, as well as Helm for Kubernetes deployments.
 
-### Podman
+## Minikube Setup
+### Using Podman
+Configure Minikube to use Podman as the driver and CRI-O as the container runtime:
 ```
 # minikube config set rootless true 
 # minikube config set driver podman
 minikube start --driver=podman --container-runtime=cri-o
 eval $(minikube podman-env)
-
 ```
-### Docker
+### Using Docker
+Configure Minikube to use Docker as the driver and Docker as the container runtime:
 ```
 # minikube config set rootless true
 # minikube config set driver docker
 minikube start --driver=docker --container-runtime=docker
 eval $(minikube docker-env)
-
 ```
-Note: If have installed docker via snap, and you are getting the error `could not read CA certificate "/home/hero/.minikube/certs/ca.pem": open /home/hero/.minikube/certs/ca.pem: permission denied.` you can solve it by adding `owner @{HOME}/.minikube/certs/* r,` to the file`/var/lib/snapd/apparmor/profiles/snap.docker.docker`, and then executo `sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.docker.docker`
-
+**Note:** If you encounter the error could not read CA certificate "/home/hero/.minikube/certs/ca.pem": open /home/hero/.minikube/certs/ca.pem: permission denied., resolve it by modifying the AppArmor profile:
+```
+sudo bash -c 'echo "owner @{HOME}/.minikube/certs/* r," >> /var/lib/snapd/apparmor/profiles/snap.docker.docker'
+sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.docker.docker
+```
 ## Deployment
 ### Docker
+Build the Docker image:
 ```
 cd ~/Repositories/Vastaya/application
 docker build --tag application:latest .
 ```
-Test the image by running
+Test the Docker image:
 ```
 docker run application:latest -p 8080:80
 ```
 ### Podman
+Build the Podman image:
 ```
 cd ~/Repositories/Vastaya/application
 podman build --tag application:latest .
 ```
-Test the image by running
+Test the Podman image:
 ```
 podman run application:latest -p 8080:80
 ```
-Note: If you get this error `Error: creating build container: short-name "nginx:alpine" did not resolve to an alias and no unqualified-search registries are defined in "/etc/containers/registries.conf` then you need to edit the file `/etc/containers/registries.conf` and add the following configuration `unqualified-search-registries = ["docker.io"]`
-
+**Note:** If you encounter the error Error: creating build container: short-name "nginx:alpine" did not resolve to an alias and no unqualified-search registries are defined in "/etc/containers/registries.conf", update the registries.conf file:
+```
+sudo bash -c 'echo "unqualified-search-registries = [\"docker.io\"]" >> /etc/containers/registries.conf'
+```
 ### Helm
+Add the NGINX Ingress Helm repository and install the Ingress controller:
 ```
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
 helm install ingress-nginx ingress-nginx/ingress-nginx
 ```
-You can create a route to services deployed with type LoadBalancer and sets their Ingress to their ClusterIP to test it locally.
+Create a route to services deployed with type LoadBalancer and update the /etc/hosts file:
 ```
 minikube tunnel --alsologtostderr 
-kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}'  | xargs -I{} sudo sh -c 'echo "{} vestaya.tech" >> /etc/hosts'
+kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
 ```
-Next we can run the application
+Deploy the application using Helm:
 ```
 cd ~/Repositories/Vastaya/application
 helm install application ./helm/
@@ -60,6 +69,8 @@ helm install application ./helm/
 
 
 
+
+### Work in progress
 First start the database
 ```
 docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -p 3306:3306 -d mysql:latest
