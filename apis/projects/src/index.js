@@ -1,27 +1,21 @@
 require('dotenv').config(); 
 
 var express = require('express');
-const mysql = require("mysql2/promise");
 const bodyParser = require("body-parser");
 const cors = require('cors');
 
 var app = express();
-var port = process.env.port || 1337;
-
-const dbConfig = {
-    host: process.env.DB_HOST,
-    port: process.env.DB_PORT,
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
-    database: process.env.DB_NAME,
-};
-const pool = mysql.createPool(dbConfig);
+var port = process.env.port || 80;
 
 // Enable CORS for all routes
 app.use(cors()); 
 
 // Middleware
 app.use(bodyParser.json());
+
+// In-memory storage for projects
+let projects = [];
+let nextProjectId = 1; // Simple counter for project IDs
 
 // Health check endpoint
 app.get("/health", function (req, res) {
@@ -35,85 +29,57 @@ app.get('/healthz', (req, res) => {
   
 // Readiness probe endpoint
 app.get('/readyz', (req, res) => {
-    pool.query('SELECT 1')
-      .then(() => res.status(200).send('OK'))
-      .catch(() => res.status(500).send('Not OK'));
+    res.status(200).send('OK');
 });
 
 // Create a new project
-app.post("/projects", async (req, res) => {
+app.post("/", (req, res) => {
     const { name, description } = req.body;
-    try {
-        const [result] = await pool.execute(
-            "INSERT INTO projects (name, description) VALUES (?, ?)",
-            [name, description]
-        );
-        res.status(201).json({ id: result.insertId, name, description });
-    } catch (err) {
-        console.error("Error creating project", err.stack);
-        res.status(500).json({ error: "Failed to create project" });
-    }
+    const newProject = { id: nextProjectId++, name, description };
+    projects.push(newProject);
+    res.status(201).json(newProject);
 });
 
 // Get all projects
-app.get("/projects", async (req, res) => {
-    try {
-        const [rows] = await pool.query("SELECT * FROM projects");
-        res.json(rows);
-    } catch (err) {
-        console.error("Error fetching projects", err.stack);
-        res.status(500).json({ error: "Failed to fetch projects" });
-    }
+app.get("/", (req, res) => {
+    res.json(projects);
 });
 
 // Get a project by ID
-app.get("/projects/:id", async (req, res) => {
+app.get("/:id", (req, res) => {
     const { id } = req.params;
-    try {
-        const [rows] = await pool.execute("SELECT * FROM projects WHERE id = ?", [id]);
-        if (rows.length === 0) {
-            return res.status(404).json({ error: "Project not found" });
-        }
-        res.json(rows[0]);
-    } catch (err) {
-        console.error("Error fetching project", err.stack);
-        res.status(500).json({ error: "Failed to fetch project" });
+    const project = projects.find(p => p.id == id);
+    if (!project) {
+        return res.status(404).json({ error: "Project not found" });
     }
+    res.json(project);
 });
 
 // Update a project by ID
-app.put("/projects/:id", async (req, res) => {
+app.put("/:id", (req, res) => {
     const { id } = req.params;
     const { name, description } = req.body;
-    try {
-        const [result] = await pool.execute("UPDATE projects SET name = ?, description = ? WHERE id = ?", [name, description, id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Project not found" });
-        }
-        res.json({ id, name, description });
-    } catch (err) {
-        console.error("Error updating project", err.stack);
-        res.status(500).json({ error: "Failed to update project" });
+    const projectIndex = projects.findIndex(p => p.id == id);
+    if (projectIndex === -1) {
+        return res.status(404).json({ error: "Project not found" });
     }
+    projects[projectIndex] = { id: parseInt(id), name, description };
+    res.json(projects[projectIndex]);
 });
 
 // Delete a project by ID
-app.delete("/projects/:id", async (req, res) => {
+app.delete("/:id", (req, res) => {
     const { id } = req.params;
-    try {
-        const [result] = await pool.execute("DELETE FROM projects WHERE id = ?", [id]);
-        if (result.affectedRows === 0) {
-            return res.status(404).json({ error: "Project not found" });
-        }
-        res.status(204).send();
-    } catch (err) {
-        console.error("Error deleting project", err.stack);
-        res.status(500).json({ error: "Failed to delete project" });
+    const projectIndex = projects.findIndex(p => p.id == id);
+    if (projectIndex === -1) {
+        return res.status(404).json({ error: "Project not found" });
     }
+    projects.splice(projectIndex, 1);
+    res.status(204).send();
 });
 
 app.listen(port, () => {
-  const datetime = new Date();
-  const message = `Server running on Port: ${port}. Started at: ${datetime}`;
-  console.log(message);
+    const datetime = new Date();
+    const message = `Server running on Port: ${port}. Started at: ${datetime}`;
+    console.log(message);
 });

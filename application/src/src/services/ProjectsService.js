@@ -1,6 +1,6 @@
-class DotNetService {    
-    getHealthCheck(){
-        return fetch(process.env.REACT_APP_DOTNET_ROOT_URL + "/Health/HealthCheck",{ 
+class ProjectsService {    
+    getProjects(){
+        return fetch(process.env.REACT_APP_PROJECTS_API_URL,{ 
             method: 'get',
             mode: 'cors',
             headers: {
@@ -9,7 +9,7 @@ class DotNetService {
                 'Access-Control-Allow-Origin':'*'
             }
         })
-        .then(res => res.json());        
+        .then(res => res.json());
     }
 }
-export default new DotNetService();
+export default new ProjectsService();

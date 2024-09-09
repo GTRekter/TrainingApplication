@@ -40,7 +40,11 @@ spec:
         - name: {{ include "helm.fullname" . }}-container
           securityContext:
             {{- toYaml .Values.container.securityContext | nindent 12 }}
+          {{- if .Values.container.image.repository }}
           image: "{{ .Values.container.image.repository }}/{{ .Values.container.image.name }}:{{ .Values.container.image.tag }}"
+          {{- else }}
+          image: "{{ .Values.container.image.name }}:{{ .Values.container.image.tag }}"
+          {{- end }}
           imagePullPolicy: {{ .Values.container.image.pullPolicy }}
           env:
             {{- range .Values.container.env }}

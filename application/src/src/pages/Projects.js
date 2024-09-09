@@ -1,4 +1,5 @@
 import React, { Component } from 'react';
+import ProjectsService from '../services/ProjectsService';
 import './projects.css';
 
 export default class Projects extends Component {
@@ -15,8 +16,7 @@ export default class Projects extends Component {
     componentDidMount() {
         console.log("Fetching projects from the API");
         console.log("API URL:", process.env.REACT_APP_PROJECTS_API_URL);
-        fetch(process.env.REACT_APP_PROJECTS_API_URL)
-            .then(res => res.json())
+        ProjectsService.getProjects()
             .then(projects => this.setState({ projects }))
             .catch(error => console.error('Error fetching projects:', error));
     }

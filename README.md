@@ -65,7 +65,15 @@ Deploy the application using Helm:
 cd ~/Repositories/Vastaya/application
 helm install application --values ./helm/values.yaml ../helm/
 ```
-
+Deploy the APIs using Helm:
+```
+cd ~/Repositories/Vastaya/api/projects
+helm install projects --values ./helm/values.yaml ../../helm/
+```
+Since each APIs will have it's own host, we will need to update the /etc/hosts file again.
+```
+kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} projects.vastaya.tech" >> /etc/hosts'
+```
 
 
 
