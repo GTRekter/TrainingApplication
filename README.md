@@ -1,5 +1,5 @@
 # Environment Configuration and Deployment Guide
-This guide covers how to set up and deploy an application using Minikube with different drivers and container runtimes, including Docker and Podman, as well as Helm for Kubernetes deployments.
+This guide provides step-by-step instructions for setting up and deploying an application using Minikube with various drivers and container runtimes, including Docker and Podman. It also covers deployment using Helm for Kubernetes.
 
 ## Minikube Setup
 ### Using Podman
@@ -18,127 +18,128 @@ Configure Minikube to use Docker as the driver and Docker as the container runti
 minikube start --driver=docker --container-runtime=docker
 eval $(minikube docker-env)
 ```
-**Note:** If you encounter the error could not read CA certificate "/home/hero/.minikube/certs/ca.pem": open /home/hero/.minikube/certs/ca.pem: permission denied., resolve it by modifying the AppArmor profile:
+**Note:** If you encounter the error could not read CA certificate `/home/hero/.minikube/certs/ca.pem: open /home/hero/.minikube/certs/ca.pem: permission denied.`, resolve it by modifying the AppArmor profile:
 ```
 sudo bash -c 'echo "owner @{HOME}/.minikube/certs/* r," >> /var/lib/snapd/apparmor/profiles/snap.docker.docker'
 sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.docker.docker
 ```
+## Ingress Setup
+The application utilizes multiple Ingress resources to expose services outside the Kubernetes cluster. The chosen Ingress controller is NGINX. To install it, first add the NGINX Ingress Helm repository and install the controller using the following commands:
+```
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install ingress-nginx ingress-nginx/ingress-nginx
+```
+Next, create a route to the services deployed with the LoadBalancer type and update the `/etc/hosts` file to resolve domain names locally:
+```
+minikube tunnel --alsologtostderr 
+kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
+```
+
 ## Deployment
-### Docker
-Build the Docker image:
-```
-cd ~/Repositories/Vastaya/application
-docker build --tag application:latest .
-```
-Test the Docker image:
-```
-docker run application:latest -p 8080:80
-```
 ### Podman
 Build the Podman image:
 ```
-cd ~/Repositories/Vastaya/application
+cd ~/application
 podman build --tag application:latest .
 ```
 Test the Podman image:
 ```
 podman run application:latest -p 8080:80
 ```
-**Note:** If you encounter the error Error: creating build container: short-name "nginx:alpine" did not resolve to an alias and no unqualified-search registries are defined in "/etc/containers/registries.conf", update the registries.conf file:
+### Docker
+Build the Docker image:
+```
+cd ~/application
+docker build --tag application:latest .
+```
+Test the Docker image:
+```
+docker run application:latest -p 8080:80
+```
+**Note:** If you encounter the error `Error: creating build container: short-name nginx:alpine did not resolve to an alias and no unqualified-search registries are defined in /etc/containers/registries.conf`, update the registries.conf file:
 ```
 sudo bash -c 'echo "unqualified-search-registries = [\"docker.io\"]" >> /etc/containers/registries.conf'
 ```
 ## Helm
-Add the NGINX Ingress Helm repository and install the Ingress controller:
+Once the image is build, you can install the helm chart using the image in the Kubernetes cluster
 ```
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
-helm repo update
-helm install ingress-nginx ingress-nginx/ingress-nginx
-```
-Create a route to services deployed with type LoadBalancer and update the /etc/hosts file:
-```
-minikube tunnel --alsologtostderr 
-kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
-```
-Deploy the application using Helm:
-```
-cd ~/Repositories/Vastaya/application
+cd ~/application
 helm install application --values ./helm/values.yaml ../helm/
 ```
-Deploy the APIs using Helm:
-```
-cd ~/Repositories/Vastaya/api/projects
-helm install projects --values ./helm/values.yaml ../../helm/
-```
-Since each APIs will have it's own host, we will need to update the /etc/hosts file again.
+**Note**: Since each API will have its own host, you’ll need to update the `/etc/hosts` file accordingly:
 ```
 kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} projects.vastaya.tech" >> /etc/hosts'
 ```
 
-
-
-
-### Work in progress
-First start the database
+## Automation
+### Bots
+The `/bot` directory contains several Kubernetes Job and CronJob resources designed to simulate traffic to the application for demonstration purposes. To deploy these resources, navigate to the /bots directory and apply the configurations:
 ```
-docker run --name some-mysql -e MYSQL_ROOT_PASSWORD=my-secret-pw -p 3306:3306 -d mysql:latest
-docker container ls
-docker exec -it 03d87da15bce bin/bash
-mysql -h 127.0.0.1 -P 3306 -u root -p
-```
-then start the API
-```
-cd E:\Repositories\Training\apis\users\src
-node index.js
-```
-Check that the API is working
-```
-$baseUrl = "http://localhost:1337"
-$endpoint = "/users"
-$response = Invoke-RestMethod -Uri ($baseUrl + $endpoint) -Method Get
-$response | Format-Table
-
-
-$endpoint = "/healthcheck"
-$response = Invoke-RestMethod -Uri ($baseUrl + $endpoint) -Method Get
-$response | Format-Table
-
-
-$endpoint = "/users"
-$userData = @{
-    name = "John Doe"
-    email = "john.doe@example.com"
-}
-$jsonData = $userData | ConvertTo-Json
-$response = Invoke-RestMethod -Uri ($baseUrl + $endpoint) -Method Post -Body $jsonData -ContentType "application/json"
-$response | Format-Table
-```
-Then start the application
-```
-cd E:\Repositories\Training\application
-yarn start
+cd ~/bots
+kubectl apply -f .
 ```
 
-# Deployment
-First build a new image
+## Monitoring
+To monitor CPU and memory usage, you can install Prometheus and Grafana. These tools will help you gather and visualize metrics from your Kubernetes cluster.
+### Prometheus
+Prometheus is a powerful monitoring and alerting toolkit. To install Prometheus using Helm, follow these steps:
+1. Add the Prometheus Helm repository:
 ```
-docker login acrtrainingdev.azurecr.io
-docker build -t acrtrainingdev.azurecr.io/app-application:latest .
-docker push acrtrainingdev.azurecr.io/application:latest
-```
-
-
-
-# Prerequisites
-The following application require the following:
-
-**Nginx Ingress*
-The documentation is available at the following [link](https://docs.nginx.com/nginx-ingress-controller/installation/installing-nic/installation-with-helm/)
-```
-helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx  
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 helm repo update
-helm install ingress-nginx ingress-nginx/ingress-nginx --namespace ingress-nginx --create-namespace
 ```
+2. Install Prometheus:
+```
+helm install prometheus prometheus-community/prometheus
+```
+3. Access Prometheus via port-forward: To view the Prometheus server, forward its port to your local machine:
+```
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=prometheus" -o jsonpath="{.items[0].metadata.name}")
+kubectl --namespace default port-forward $POD_NAME 9090
+```
+Nou can now access Prometheus at http://localhost:9090.
+
+### Grafana
+Grafana provides powerful visualization capabilities for your metrics. To install Grafana using Helm, follow these steps:
+1. Add the Grafana Helm repository:
+```
+helm repo add grafana https://grafana.github.io/helm-charts
+helm repo update
+```
+2. Install Grafana:
+```
+helm install grafana grafana/grafana
+```
+3. Access the Grafana dashboard: 
+- First, retrieve the admin password:
+```
+kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+```
+- Then, forward the Grafana port to your local machine:
+```
+export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
+kubectl port-forward $POD_NAME 3000
+```
+You can now access Grafana at http://localhost:3000.
+
+4. Configure Grafana to use Prometheus as a data source:
+- Log in to Grafana using the retrieved admin password.
+- Navigate to Configuration (gear icon) → Data Sources.
+- Click Add data source.
+- Select Prometheus.
+- Enter the following URL for the Prometheus server:
+```
+http://prometheus-server.default.svc.cluster.local
+```
+- Save and test the configuration.
+This setup will allow you to monitor your application's CPU and memory usage effectively, and visualize the collected metrics using Grafana dashboards.
+
+
+
+
+
+<!-- # Prerequisites
 **MySQL Operator**
 The documentation is available at the following [link](https://dev.mysql.com/doc/mysql-operator/en/mysql-operator-innodbcluster.html)
 ```
@@ -185,5 +186,5 @@ Query OK, 1 row affected (0.0088 sec)
 |  1 | John Doe | johndoe@example.com |
 +----+----------+---------------------+
 1 row in set (0.0007 sec)
- MySQL  mysql-cluster:3306 ssl  testdb  SQL > quit
+ MySQL  mysql-cluster:3306 ssl  testdb  SQL > quit -->
 ```
