@@ -18,6 +18,7 @@ Configure Minikube to use Docker as the driver and Docker as the container runti
 minikube start --driver=docker --container-runtime=docker
 eval $(minikube docker-env)
 ```
+**Note**: If you are using multiple terminal, remember to execute `eval $(minikube docker-env)` on each of them to point to the right repository.
 **Note:** If you encounter the error could not read CA certificate `/home/hero/.minikube/certs/ca.pem: open /home/hero/.minikube/certs/ca.pem: permission denied.`, resolve it by modifying the AppArmor profile:
 ```
 sudo bash -c 'echo "owner @{HOME}/.minikube/certs/* r," >> /var/lib/snapd/apparmor/profiles/snap.docker.docker'

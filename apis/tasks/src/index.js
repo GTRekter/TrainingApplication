@@ -14,8 +14,15 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // In-memory storage for tasks
-let tasks = [];
-let nextId = 1; // Simple counter for task IDs
+let tasks = [
+    {
+        id: 1,
+        name: "Mock Task",
+        description: "This is a mock task for demonstration purposes",
+        projectId: 1
+    }
+];
+let nextId = 2; 
 
 // Health check endpoint
 app.get("/health", function (req, res) {
@@ -34,8 +41,8 @@ app.get('/readyz', (req, res) => {
 
 // Create a new task
 app.post("/", (req, res) => {
-    const { name, email } = req.body;
-    const newTask = { id: nextId++, name, email };
+    const { name, description, id } = req.body;
+    const newTask = { id: nextId++, name, description, projectId: id };
     tasks.push(newTask);
     res.status(201).json(newTask);
 });
@@ -43,6 +50,16 @@ app.post("/", (req, res) => {
 // Get all tasks
 app.get("/", (req, res) => {
     res.json(tasks);
+});
+
+// Get all tasks by project ID
+app.get("/projects/:id", (req, res) => {
+    const { id } = req.params;
+    if (!id) {
+        return res.status(400).json({ error: "Project ID is required" });
+    }
+    const projectTasks = tasks.filter(u => u.projectId == id);
+    res.json(projectTasks);
 });
 
 // Get a task by ID

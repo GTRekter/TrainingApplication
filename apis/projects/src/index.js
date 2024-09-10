@@ -14,8 +14,14 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // In-memory storage for projects
-let projects = [];
-let nextProjectId = 1; // Simple counter for project IDs
+let projects = [
+    {
+        id: 1,
+        name: "Mock Project",
+        description: "This is a mock project for demonstration purposes"
+    }
+];
+let nextProjectId = 2;
 
 // Health check endpoint
 app.get("/health", function (req, res) {
@@ -65,6 +71,33 @@ app.put("/:id", (req, res) => {
     }
     projects[projectIndex] = { id: parseInt(id), name, description };
     res.json(projects[projectIndex]);
+});
+
+// Create a new task for a project
+app.post("/:id/tasks", (req, res) => {
+    const { id } = req.params;
+    const { name, description } = req.body;
+    fetch(`${process.env.TASKS_API_URL}/projects/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, description, id})
+    })
+        .then(response => response.json())
+        .then(data => res.status(201).json(data))
+        .catch(err => res.status(500).json({ error: err.message }));
+});
+
+// Get all tasks related to this project
+app.get("/:id/tasks", (req, res) => {
+    const { id } = req.params;
+    const project = projects.find(p => p.id == id);
+    if (!project) {
+        return res.status(404).json({ error: "Project not found" });
+    }
+    fetch(`${process.env.TASKS_API_URL}/projects/${id}`)
+        .then(response => response.json())
+        .then(data => res.json(data))
+        .catch(err => res.status(500).json({ error: err.message }));
 });
 
 // Delete a project by ID
