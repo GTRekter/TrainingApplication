@@ -1,3 +1,4 @@
+// Load environment variables
 require('dotenv').config(); 
 
 var express = require('express');
@@ -5,7 +6,7 @@ const bodyParser = require("body-parser");
 const cors = require('cors');
 
 var app = express();
-var port = process.env.port || 80;
+var port = process.env.PORT || 80;
 
 // Enable CORS for all routes
 app.use(cors()); 
@@ -18,7 +19,8 @@ let projects = [
     {
         id: 1,
         name: "Mock Project",
-        description: "This is a mock project for demonstration purposes"
+        description: "This is a mock project for demonstration purposes",
+        status: "open"
     }
 ];
 let nextProjectId = 2;
@@ -41,7 +43,7 @@ app.get('/readyz', (req, res) => {
 // Create a new project
 app.post("/", (req, res) => {
     const { name, description } = req.body;
-    const newProject = { id: nextProjectId++, name, description };
+    const newProject = { id: nextProjectId++, name, description, status: "open" };
     projects.push(newProject);
     res.status(201).json(newProject);
 });
@@ -64,40 +66,25 @@ app.get("/:id", (req, res) => {
 // Update a project by ID
 app.put("/:id", (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
+    const { name, description, status } = req.body;
     const projectIndex = projects.findIndex(p => p.id == id);
     if (projectIndex === -1) {
         return res.status(404).json({ error: "Project not found" });
     }
-    projects[projectIndex] = { id: parseInt(id), name, description };
+    projects[projectIndex] = { id: parseInt(id), name, description, status };
     res.json(projects[projectIndex]);
 });
 
-// Create a new task for a project
-app.post("/:id/tasks", (req, res) => {
+// Update a project status by ID
+app.put("/:id/status", (req, res) => {
     const { id } = req.params;
-    const { name, description } = req.body;
-    fetch(`${process.env.TASKS_API_URL}/projects/${id}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, description, id})
-    })
-        .then(response => response.json())
-        .then(data => res.status(201).json(data))
-        .catch(err => res.status(500).json({ error: err.message }));
-});
-
-// Get all tasks related to this project
-app.get("/:id/tasks", (req, res) => {
-    const { id } = req.params;
-    const project = projects.find(p => p.id == id);
-    if (!project) {
+    const { status } = req.body;
+    const projectIndex = projects.findIndex(p => p.id == id);
+    if (projectIndex === -1) {
         return res.status(404).json({ error: "Project not found" });
     }
-    fetch(`${process.env.TASKS_API_URL}/projects/${id}`)
-        .then(response => response.json())
-        .then(data => res.json(data))
-        .catch(err => res.status(500).json({ error: err.message }));
+    projects[projectIndex].status = status;
+    res.json(projects[projectIndex]);
 });
 
 // Delete a project by ID
@@ -111,8 +98,29 @@ app.delete("/:id", (req, res) => {
     res.status(204).send();
 });
 
+// Return a report of the project status
+app.get("/:id/report", (req, res) => {
+    const { id } = req.params;
+    fetch(`${process.env.TASKS_API_URL}/projects/${id}`)
+        .then(response => response.json())
+        .then(tasks => {
+            const totalTasks = tasks.length;
+            const completedTasks = tasks.filter(t => t.completed).length;
+            const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+            res.json({
+                projectId: id,
+                totalTasks,
+                completedTasks,
+                progress: `${progress}%`
+            });
+        })
+        .catch(err => res.status(500).json({ error: err.message }));
+});
+
 app.listen(port, () => {
     const datetime = new Date();
     const message = `Server running on Port: ${port}. Started at: ${datetime}`;
     console.log(message);
+}).on('error', (err) => {
+    console.error('Server error:', err);
 });
