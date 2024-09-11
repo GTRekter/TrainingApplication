@@ -9,6 +9,7 @@ The application architecture is composed of the following components:
 - **Cluster IP Service:** Provides internal access within the cluster.
 - **Ingress with NGINX:** Manages external access and routing.
 - **Deployment:** This will deploy one single replica that will host the React.JS application isntance.
+
 **Note:** Since the React.JS application operates in the browser, API endpoints must be accessed using the host specified in their Ingress configurations. The APIs will not be accessible via internal cluster DNS resolution.
 
 **NodeJS API (Projects):** This API manages project data in memory and supports CRUD (Create, Read, Update, Delete) operations. It also interacts with the internal endpoint of the Tasks service to generate reports for specific projects. Deployment will be managed via a shared Helm chart and will include:
