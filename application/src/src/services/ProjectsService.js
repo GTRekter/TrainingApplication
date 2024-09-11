@@ -19,8 +19,8 @@ class ProjectsService {
             throw err;
         });
     }
-    getProjectTasks(projectId) {
-        return fetch(`${process.env.REACT_APP_PROJECTS_API_URL}/${projectId}/tasks`, { 
+    getProjectById(projectId){
+        return fetch(`${process.env.REACT_APP_PROJECTS_API_URL}/${projectId}`,{
             method: 'GET',
             mode: 'cors',
             headers: {
@@ -30,7 +30,7 @@ class ProjectsService {
         })
         .then(res => {
             if (!res.ok) {
-                throw new Error(`Failed to fetch tasks for project ${projectId}`);
+                throw new Error(`Failed to fetch project ${projectId}`);
             }
             return res.json();
         })

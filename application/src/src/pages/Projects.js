@@ -9,6 +9,7 @@ export default class Projects extends Component {
 
     constructor(props) {
         super(props);
+        this.onClickViewProject = this.onClickViewProject.bind(this);
         this.onClickEditProject = this.onClickEditProject.bind(this);
         this.onClickDeleteProject = this.onClickDeleteProject.bind(this);
     }
@@ -19,6 +20,11 @@ export default class Projects extends Component {
         ProjectsService.getProjects()
             .then(projects => this.setState({ projects }))
             .catch(error => console.error('Error fetching projects:', error));
+    }
+
+    onClickViewProject(projectId) {
+        console.log("View project", projectId);
+        this.props.history.push(`/projects/${projectId}`);
     }
 
     onClickEditProject(projectId) {
@@ -42,18 +48,20 @@ export default class Projects extends Component {
                                     <th>ID</th>
                                     <th>Name</th>
                                     <th>Description</th>
+                                    <th>Status</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {this.state.projects.map(project => 
-                                    <tr key={project.id}>
+                                    <tr key={project.id} onClick={() => this.onClickViewProject(project.id)}>
                                         <td>{project.id}</td>
                                         <td>{project.name}</td>
                                         <td>{project.description}</td>
+                                        <td>{project.status}</td>
                                         <td>
-                                            <button className="btn btn-primary" onClick={() => this.onClickEditUser(project.id)}>Edit</button>
-                                            <button className="btn btn-danger" onClick={() => this.onClickDeleteUser(project.id)}>Delete</button>
+                                            <button className="btn btn-primary" onClick={() => this.onClickEditProject(project.id)}>Edit</button>
+                                            <button className="btn btn-danger" onClick={() => this.onClickDeleteProject(project.id)}>Delete</button>
                                         </td>
                                     </tr>
                                 )}
