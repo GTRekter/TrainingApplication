@@ -22,6 +22,8 @@ The application architecture is composed of the following components:
 - **Ingress with NGINX:** Manages external routing and access.
 - **Deployment:** This will deploy one single replica that will host the NodeJS API for task management.
 
+![Diagram](assets/diagram.png)
+
 ## Minikube Setup
 ### Using Podman
 Configure Minikube to use Podman as the driver and CRI-O as the container runtime:
