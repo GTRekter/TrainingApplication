@@ -59,30 +59,33 @@ kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingre
 ```
 
 ## Development
-Fisrt you need to hash the values related to kubernetes and use the values for the localhost in the .env file, for example:
+First, you need to configure the environment variables in the `.env` file. Replace the Kubernetes-specific values with localhost URLs for local development. For example:
 ```
-# # Kuberentes
+# Kubernetes Configuration (comment out for local development)
 # REACT_APP_USERS_API_URL=http://users.vastaya.tech
 # REACT_APP_PROJECTS_API_URL=http://projects.vastaya.tech
 # REACT_APP_TASKS_API_URL=http://tasks.vastaya.tech
 
-# Local
+# Local Development Configuration
 REACT_APP_USERS_API_URL=http://users.vastaya.tech
 REACT_APP_PROJECTS_API_URL=http://localhost:8081
 REACT_APP_TASKS_API_URL=http://localhost:8082
+
 ```
-Then you can start the applciation:
+After updating the `.env` file, you can start the application with the following commands:
+1. Start the React.JS Application:
 ```
 cd ~/application/src
 yarn install
 yarn start
 ```
-To start the apis
+2. Start the APIs:
 ```
 cd ~/apis/projects/src
 npm install
 npm start
 ```
+This setup will ensure that your React.JS application and APIs are correctly configured for local development.
 
 ## Deployment
 ### Podman
