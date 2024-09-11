@@ -1,6 +1,26 @@
 # Environment Configuration and Deployment Guide
 This guide provides step-by-step instructions for setting up and deploying an application using Minikube with various drivers and container runtimes, including Docker and Podman. It also covers deployment using Helm for Kubernetes.
 
+![Homepage](assets/homepage.png)
+
+## Architecture
+The application architecture is composed of the following components:
+**React.JS Application:**This is the user interface (UI) that allows users to view projects and manage tasks (e.g., opening and closing tasks). The React.JS application will be deployed using a shared Helm chart, and it will consist of:
+- **Cluster IP Service:** Provides internal access within the cluster.
+- **Ingress with NGINX:** Manages external access and routing.
+- **Deployment:** This will deploy one single replica that will host the React.JS application isntance.
+**Note:** Since the React.JS application operates in the browser, API endpoints must be accessed using the host specified in their Ingress configurations. The APIs will not be accessible via internal cluster DNS resolution.
+
+**NodeJS API (Projects):** This API manages project data in memory and supports CRUD (Create, Read, Update, Delete) operations. It also interacts with the internal endpoint of the Tasks service to generate reports for specific projects. Deployment will be managed via a shared Helm chart and will include:
+- **Cluster IP Service:** Facilitates internal communication within the cluster.
+- **Ingress with NGINX:** Handles external requests and routing.
+- **Deployment:** This will deploy one single replica that will host the NodeJS API for project management.
+
+**NodeJS API (Tasks):** This API manages task data in memory and supports CRUD operations. It communicates with the internal endpoint of the Projects service to update project statuses based on task progress. The deployment will be carried out using a shared Helm chart and will include:
+- **Cluster IP Service:** Provides internal access for communication within the cluster.
+- **Ingress with NGINX:** Manages external routing and access.
+- **Deployment:** This will deploy one single replica that will host the NodeJS API for task management.
+
 ## Minikube Setup
 ### Using Podman
 Configure Minikube to use Podman as the driver and CRI-O as the container runtime:
