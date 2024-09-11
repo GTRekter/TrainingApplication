@@ -37,6 +37,32 @@ minikube tunnel --alsologtostderr
 kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
 ```
 
+## Development
+Fisrt you need to hash the values related to kubernetes and use the values for the localhost in the .env file, for example:
+```
+# # Kuberentes
+# REACT_APP_USERS_API_URL=http://users.vastaya.tech
+# REACT_APP_PROJECTS_API_URL=http://projects.vastaya.tech
+# REACT_APP_TASKS_API_URL=http://tasks.vastaya.tech
+
+# Local
+REACT_APP_USERS_API_URL=http://users.vastaya.tech
+REACT_APP_PROJECTS_API_URL=http://localhost:8081
+REACT_APP_TASKS_API_URL=http://localhost:8082
+```
+Then you can start the applciation:
+```
+cd ~/application/src
+yarn install
+yarn start
+```
+To start the apis
+```
+cd ~/apis/projects/src
+npm install
+npm start
+```
+
 ## Deployment
 ### Podman
 Build the Podman image:
