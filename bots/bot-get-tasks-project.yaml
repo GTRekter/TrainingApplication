@@ -26,9 +26,9 @@ spec:
             wait
           }
 
-          wait_time=60
+          wait_time=10
 
-          for num_requests in 5 50 500 5000; do
+          for num_requests in 50 500 50000; do
             echo "Running with $num_requests requests..."
             get_tasks $num_requests
             echo "Waiting for $wait_time seconds before increasing requests..."
