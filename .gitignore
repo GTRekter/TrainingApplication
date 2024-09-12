@@ -1,0 +1,2 @@
+# Ignore all .pem files used for certificates
+/certificates

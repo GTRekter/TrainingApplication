@@ -1,7 +1,7 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "helm.fullname" . }}-deployment
+  name: {{ include "helm.fullname" . }}-dplmt
   labels:
     {{- include "helm.labels" . | nindent 4 }}
   {{- with .Values.deployment.annotations }}
@@ -32,12 +32,12 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       {{- if .Values.serviceAccount.enabled }}
-      serviceAccountName: {{ include "helm.serviceAccountName" . }}-serviceaccount
+      serviceAccountName: {{ include "helm.serviceAccountName" . }}-sa
       {{- end }}
       securityContext:
         {{- toYaml .Values.deployment.podSecurityContext | nindent 8 }}
       containers:
-        - name: {{ include "helm.fullname" . }}-container
+        - name: {{ include "helm.fullname" . }}-cntr
           securityContext:
             {{- toYaml .Values.container.securityContext | nindent 12 }}
           {{- if .Values.container.image.repository }}

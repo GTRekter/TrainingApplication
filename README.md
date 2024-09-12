@@ -9,18 +9,21 @@ The application architecture is composed of the following components:
 - **Cluster IP Service:** Provides internal access within the cluster.
 - **Ingress with NGINX:** Manages external access and routing.
 - **Deployment:** This will deploy one single replica that will host the React.JS application isntance.
+- **Namespace:** All resources will be deployed onto the same namespace.
 
-**Note:** Since the React.JS application operates in the browser, API endpoints must be accessed using the host specified in their Ingress configurations. The APIs will not be accessible via internal cluster DNS resolution.
+**Note:** Since the React.JS is a client application, API endpoints must be accessed using the host specified in their Ingress configurations. The APIs will not be accessible via internal cluster DNS resolution.
 
 **NodeJS API (Projects):** This API manages project data in memory and supports CRUD (Create, Read, Update, Delete) operations. It also interacts with the internal endpoint of the Tasks service to generate reports for specific projects. Deployment will be managed via a shared Helm chart and will include:
 - **Cluster IP Service:** Facilitates internal communication within the cluster.
 - **Ingress with NGINX:** Handles external requests and routing.
 - **Deployment:** This will deploy one single replica that will host the NodeJS API for project management.
+- **Namespace:** All resources will be deployed onto the same namespace.
 
 **NodeJS API (Tasks):** This API manages task data in memory and supports CRUD operations. It communicates with the internal endpoint of the Projects service to update project statuses based on task progress. The deployment will be carried out using a shared Helm chart and will include:
 - **Cluster IP Service:** Provides internal access for communication within the cluster.
 - **Ingress with NGINX:** Manages external routing and access.
 - **Deployment:** This will deploy one single replica that will host the NodeJS API for task management.
+- **Namespace:** All resources will be deployed onto the same namespace.
 
 ![Diagram](assets/diagram.png)
 
@@ -117,7 +120,7 @@ sudo bash -c 'echo "unqualified-search-registries = [\"docker.io\"]" >> /etc/con
 Once the image is build, you can install the helm chart using the image in the Kubernetes cluster
 ```
 cd ~/application
-helm install application --values ./helm/values.yaml ../helm/
+helm install application --values ./helm/values.yaml ../helm/ --create-namespace --namespace vastaya
 ```
 **Note**: Since each API will have its own host, you’ll need to update the `/etc/hosts` file accordingly:
 ```
@@ -143,12 +146,12 @@ helm repo update
 ```
 2. Install Prometheus:
 ```
-helm install prometheus prometheus-community/prometheus
+helm install prometheus prometheus-community/prometheus --create-namespace --namespace monitoring
 ```
 3. Access Prometheus via port-forward: To view the Prometheus server, forward its port to your local machine:
 ```
-export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=prometheus" -o jsonpath="{.items[0].metadata.name}")
-kubectl --namespace default port-forward $POD_NAME 9090
+export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=prometheus,app.kubernetes.io/instance=prometheus" -o jsonpath="{.items[0].metadata.name}")
+kubectl --namespace monitoring port-forward $POD_NAME 9090
 ```
 Nou can now access Prometheus at http://localhost:9090.
 
@@ -161,16 +164,16 @@ helm repo update
 ```
 2. Install Grafana:
 ```
-helm install grafana grafana/grafana
+helm install grafana grafana/grafana --create-namespace --namespace monitoring
 ```
 3. Access the Grafana dashboard: 
 - First, retrieve the admin password:
 ```
-kubectl get secret --namespace default grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
 ```
 - Then, forward the Grafana port to your local machine:
 ```
-export POD_NAME=$(kubectl get pods --namespace default -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
+export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
 kubectl port-forward $POD_NAME 3000
 ```
 You can now access Grafana at http://localhost:3000.
@@ -182,13 +185,49 @@ You can now access Grafana at http://localhost:3000.
 - Select Prometheus.
 - Enter the following URL for the Prometheus server:
 ```
-http://prometheus-server.default.svc.cluster.local
+http://prometheus-server.monitoring.svc.cluster.local
 ```
 - Save and test the configuration.
 This setup will allow you to monitor your application's CPU and memory usage effectively, and visualize the collected metrics using Grafana dashboards.
 
+## Service Mash
 
+### Linkerd
+There are two primary ways to install Linkerd as a service mesh: via Helm charts or the Linkerd CLI. In this project, I will use Helm charts for installation. A prerequisite for installing Linkerd using Helm, as opposed to the CLI, is the creation of certificates for mutual TLS (mTLS). For certificate management, I will utilize `step`.
+**Note:** The certificate issuer must be an intermediate Certificate Authority (CA).
 
+To install `step` and create the required certificates:
+```
+wget https://dl.smallstep.com/cli/docs-cli-install/latest/step-cli_amd64.deb
+sudo dpkg -i step-cli_amd64.deb
+step certificate create root.linkerd.cluster.local ca.crt ca.key --profile root-ca --no-password --insecure
+step certificate create identity.linkerd.cluster.local issuer.crt issuer.key --profile intermediate-ca --not-after 8760h --no-password --insecure --ca ca.crt --ca-key ca.key
+```
+To install Linkerd on your Kubernetes cluster using Helm, you will need to install two separate charts in succession: [linkerd-crds](https://artifacthub.io/packages/helm/linkerd2/linkerd-crds) and [linkerd-control-plane](https://artifacthub.io/packages/helm/linkerd2/linkerd-control-plane). Additionally, since the nodes in this cluster use the Docker container runtime, the proxy-init container must run with root privileges.
+```
+helm repo add linkerd https://helm.linkerd.io/stable
+helm repo update
+helm install linkerd-crds linkerd/linkerd-crds -n linkerd --create-namespace
+helm install linkerd-control-plane linkerd/linkerd-control-plane -n linkerd --create-namespace --set-file identityTrustAnchorsPEM=certificates/ca.crt --set-file identity.issuer.tls.crtPEM=certificates/issuer.crt --set-file identity.issuer.tls.keyPEM=certificates/issuer.key --set runAsRoot=true
+```
+Once installed, you can apply Linkerd to Kubernetes resources by adding specific annotations. For example, by applying an annotation to a namespace, Linkerd will automatically inject its proxies into all deployments in that namespace.
+```
+kubectl get -n vastaya deploy -o yaml   | linkerd inject -   | kubectl apply -f 
+```
+Next, install the Linkerd [Viz extension](https://artifacthub.io/packages/helm/linkerd2-edge/linkerd-viz) for monitoring and observability.
+```
+helm install linkerd-viz linkerd/linkerd-viz --create-namespace -namespace linkerd-viz 
+```
+After installation, it's recommended to restart your application deployments to ensure that the Viz extension can fully set up **tap**, which allows users to introspect live traffic.
+```
+kubectl rollout restart deployment/projects-vastaya-dplmt -n vastaya
+```
+Finally, you can access the Linkerd Viz dashboard, which provides a visual interface to the collected metrics, allowing you to monitor live traffic and the health of your services.
+**Note:** In the following screenshot, I simulated a surge in traffic to the projects API to evaluate its scalability and responsiveness.
+```      
+linkerd viz dashboard
+```
+![Homepage](assets/linkerd_metrics.png)
 
 
 <!-- # Prerequisites
