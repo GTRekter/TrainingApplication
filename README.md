@@ -70,11 +70,13 @@ First, you need to configure the environment variables in the `.env` file. Repla
 # REACT_APP_USERS_API_URL=http://users.vastaya.tech
 # REACT_APP_PROJECTS_API_URL=http://projects.vastaya.tech
 # REACT_APP_TASKS_API_URL=http://tasks.vastaya.tech
+# REACT_APP_COMMENTS_API_URL=http://comments.vastaya.tech
 
 # Local Development Configuration
 REACT_APP_USERS_API_URL=http://users.vastaya.tech
 REACT_APP_PROJECTS_API_URL=http://localhost:8081
 REACT_APP_TASKS_API_URL=http://localhost:8082
+REACT_APP_COMMENTS_API_URL=http://localhost:8083
 ```
 After updating the `.env` file, you can start the application with the following commands:
 1. Start the React.JS Application:

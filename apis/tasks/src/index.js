@@ -97,7 +97,7 @@ app.put("/:id", (req, res) => {
 });
 
 // Update a task status by ID and mark project as completed if all tasks are completed, and mark it as open if any task is open
-app.put("/:id/status", (req, res) => {
+app.put("/:id/status", async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
     const taskIndex = tasks.findIndex(u => u.id == id);
@@ -108,25 +108,23 @@ app.put("/:id/status", (req, res) => {
 
     const projectTasks = tasks.filter(t => t.projectId == tasks[taskIndex].projectId);
     const allCompleted = projectTasks.every(t => t.status === "completed");
-    if (allCompleted) {
-        fetch(`${process.env.PROJECTS_API_URL}/${tasks[taskIndex].projectId}/status`, {
+
+    try {
+        const response = await fetch(`${process.env.PROJECTS_API_URL}/${tasks[taskIndex].projectId}/status`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "completed" })
-        }).then(response => response.json())
-          .then(() => console.log(`Project ${tasks[taskIndex].projectId} marked as completed.`))
-          .catch(err => console.error(err));
-    } else {
-        fetch(`${process.env.PROJECTS_API_URL}/${tasks[taskIndex].projectId}/status`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "open" })
-        }).then(response => response.json())
-          .then(() => console.log(`Project ${tasks[taskIndex].projectId} marked as open.`))
-          .catch(err => console.error(err));
+            body: JSON.stringify({ status: allCompleted ? "completed" : "open" })
+        });
+        await response.json();
+        console.log(`Project ${tasks[taskIndex].projectId} marked as ${allCompleted ? "completed" : "open"}.`);
+    } catch (err) {
+        console.error("Error updating project status:", err);
+        return res.status(500).json({ error: "Failed to update project status" });
     }
+
     res.json(tasks[taskIndex]);
 });
+
 
 // Delete a task by ID
 app.delete("/:id", (req, res) => {
