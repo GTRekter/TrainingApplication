@@ -1,20 +1,23 @@
 import React, { Component } from 'react';
-import TasksService from '../services/TasksService';
 import './projectDetails.css';
+import TasksService from '../services/TasksService';
 import ProjectsService from '../services/ProjectsService';
+import CommentsService from '../services/CommentsService';
 
 export default class ProjectDetails extends Component {
     state = {
         name: '',
         description: '',
         status: '',
-        tasks: []
+        tasks: [],
+        comments: []
     };
 
     constructor(props) {
         super(props);
         this.onClickOpenTask = this.onClickOpenTask.bind(this);
         this.onClickCompleteTask = this.onClickCompleteTask.bind(this);
+        this.onCLickLoadComments = this.onCLickLoadComments.bind(this);
     }
 
     componentDidMount() {
@@ -74,6 +77,16 @@ export default class ProjectDetails extends Component {
             .catch(error => console.error('Error completing task:', error));
     }
 
+    onCLickLoadComments(taskId) {
+        if (!this.state.comments || this.state.comments.length === 0) {
+            CommentsService.getCommentsByTaskId(taskId)
+                .then(comments => this.setState({ comments: comments }))
+                .catch(error => console.error('Error fetching comments:', error));
+        } else {
+            this.setState({ comments: [] });
+        }
+    }
+
     render() {
         return (
             <div className="full-height-container">
@@ -96,19 +109,34 @@ export default class ProjectDetails extends Component {
                                     <th>Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {this.state.tasks.map(task => 
-                                    <tr key={task.id}>
-                                        <td>{task.id}</td>
-                                        <td>{task.name}</td>
-                                        <td>{task.description}</td>
-                                        <td>{task.status}</td>
+                            <tbody className="accordion accordion-flush" id="accordionComments">
+                                {this.state.tasks.map((task) => (
+                                    <React.Fragment key={task.id}>
+                                    <tr id={`accordionComments${task.id}`} className="accordion-item" onClick={() => this.onCLickLoadComments(task.id)}>
+                                        <td data-bs-toggle="collapse" data-bs-target={`#collapse-${task.id}`} aria-expanded="false" aria-controls={`collapse-${task.id}`}>{task.id}</td>
+                                        <td data-bs-toggle="collapse" data-bs-target={`#collapse-${task.id}`} aria-expanded="false" aria-controls={`collapse-${task.id}`}>{task.name}</td>
+                                        <td data-bs-toggle="collapse" data-bs-target={`#collapse-${task.id}`} aria-expanded="false" aria-controls={`collapse-${task.id}`}>{task.description}</td>
+                                        <td data-bs-toggle="collapse" data-bs-target={`#collapse-${task.id}`} aria-expanded="false" aria-controls={`collapse-${task.id}`}>{task.status}</td>
                                         <td>
                                             <button className="btn btn-primary" onClick={() => this.onClickCompleteTask(task.id)}>Complete</button>
                                             <button className="btn btn-danger" onClick={() => this.onClickOpenTask(task.id)}>Open</button>
                                         </td>
                                     </tr>
-                                )}
+                                    <tr id={`collapse-${task.id}`} className="accordion-collapse collapse" aria-labelledby={`accordionComments${task.id}`} data-bs-parent="#accordionComments">
+                                        <td colSpan="5">
+                                            {this.state.comments ? (
+                                                this.state.comments.map((comment) => (
+                                                <div key={comment.id}>
+                                                    <p><strong>{comment.author}</strong>: {comment.content}</p>
+                                                </div>
+                                                ))
+                                            ) : (
+                                                <p>Loading comments...</p>
+                                            )}
+                                        </td>
+                                    </tr>
+                                    </React.Fragment>
+                                ))}
                             </tbody>
                         </table>
                     </div>

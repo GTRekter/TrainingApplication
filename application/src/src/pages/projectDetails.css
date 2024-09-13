@@ -1,0 +1,3 @@
+.collapse-row.collapsed + tr {
+    display: none;
+}
