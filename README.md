@@ -193,7 +193,7 @@ This setup will allow you to monitor your application's CPU and memory usage eff
 ## Service Mash
 
 ### Linkerd
-There are two primary ways to install Linkerd as a service mesh: via Helm charts or the Linkerd CLI. In this project, I will use Helm charts for installation. A prerequisite for installing Linkerd using Helm, as opposed to the CLI, is the creation of certificates for mutual TLS (mTLS). For certificate management, I will utilize `step`.
+There are two primary ways to install Linkerd as a service mesh: via Helm charts or the Linkerd CLI. In this project, I will use Helm charts for installation and the Linkerd CLI to inject the proxy. A prerequisite for installing Linkerd using Helm, as opposed to the CLI, is the creation of certificates for mutual TLS (mTLS). For certificate management, I will utilize `step`.
 **Note:** The certificate issuer must be an intermediate Certificate Authority (CA).
 
 To install `step` and create the required certificates:
@@ -203,20 +203,28 @@ sudo dpkg -i step-cli_amd64.deb
 step certificate create root.linkerd.cluster.local ca.crt ca.key --profile root-ca --no-password --insecure
 step certificate create identity.linkerd.cluster.local issuer.crt issuer.key --profile intermediate-ca --not-after 8760h --no-password --insecure --ca ca.crt --ca-key ca.key
 ```
+Next, let's install the Linkerd CLI
+```
+curl --proto '=https' --tlsv1.2 -sSfL https://run.linkerd.io/install | sh
+export PATH=$HOME/.linkerd2/bin:$PATH
+```
 To install Linkerd on your Kubernetes cluster using Helm, you will need to install two separate charts in succession: [linkerd-crds](https://artifacthub.io/packages/helm/linkerd2/linkerd-crds) and [linkerd-control-plane](https://artifacthub.io/packages/helm/linkerd2/linkerd-control-plane). Additionally, since the nodes in this cluster use the Docker container runtime, the proxy-init container must run with root privileges.
 ```
 helm repo add linkerd https://helm.linkerd.io/stable
 helm repo update
 helm install linkerd-crds linkerd/linkerd-crds -n linkerd --create-namespace
-helm install linkerd-control-plane linkerd/linkerd-control-plane -n linkerd --create-namespace --set-file identityTrustAnchorsPEM=certificates/ca.crt --set-file identity.issuer.tls.crtPEM=certificates/issuer.crt --set-file identity.issuer.tls.keyPEM=certificates/issuer.key --set runAsRoot=true
+helm install linkerd-crds linkerd-edge/linkerd-crds -n linkerd --create-namespace
+helm install linkerd-control-plane linkerd-edge/linkerd-control-plane -n linkerd --create-namespace --set-file identityTrustAnchorsPEM=certificates/ca.crt --set-file identity.issuer.tls.crtPEM=certificates/issuer.crt --set-file identity.issuer.tls.keyPEM=certificates/issuer.key --set runAsRoot=true
 ```
-Once installed, you can apply Linkerd to Kubernetes resources by adding specific annotations. For example, by applying an annotation to a namespace, Linkerd will automatically inject its proxies into all deployments in that namespace.
+**Note:** The stable version of Linkerd does not include the `externalworkloads.workload.linkerd.io` CRD, which may cause the `linkerd check` command to fail, as it checks components based on the edge release. To resolve this, you can manually install the missing CRD by generating the manifest with the command `linkerd install --crds`, copying the CRD definitions into a YAML file, and deploying it manually.
+
+Once installed, you can apply Linkerd to Kubernetes resources by adding specific annotations. 
 ```
-kubectl get -n vastaya deploy -o yaml   | linkerd inject -   | kubectl apply -f 
+kubectl get -n vastaya deploy -o yaml | linkerd inject - | kubectl apply -f 
 ```
 Next, install the Linkerd [Viz extension](https://artifacthub.io/packages/helm/linkerd2-edge/linkerd-viz) for monitoring and observability.
 ```
-helm install linkerd-viz linkerd/linkerd-viz --create-namespace -namespace linkerd-viz 
+helm install linkerd-viz linkerd/linkerd-viz --create-namespace --namespace linkerd-viz 
 ```
 After installation, it's recommended to restart your application deployments to ensure that the Viz extension can fully set up **tap**, which allows users to introspect live traffic.
 ```
