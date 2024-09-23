@@ -1,8 +1,6 @@
 # Environment Configuration and Deployment Guide
 This guide provides step-by-step instructions for setting up and deploying an application using Minikube with various drivers and container runtimes, including Docker and Podman. It also covers deployment using Helm for Kubernetes.
-
 ![Homepage](assets/homepage.png)
-
 ## Architecture
 The application architecture is composed of the following components:
 **React.JS Application:**This is the user interface (UI) that allows users to view projects and manage tasks (e.g., opening and closing tasks). The React.JS application will be deployed using a shared Helm chart, and it will consist of:
@@ -26,7 +24,6 @@ The application architecture is composed of the following components:
 - **Namespace:** All resources will be deployed onto the same namespace.
 
 ![Diagram](assets/diagram.png)
-
 ## Minikube Setup
 ### Using Podman
 Configure Minikube to use Podman as the driver and CRI-O as the container runtime:
@@ -50,19 +47,50 @@ eval $(minikube docker-env)
 sudo bash -c 'echo "owner @{HOME}/.minikube/certs/* r," >> /var/lib/snapd/apparmor/profiles/snap.docker.docker'
 sudo apparmor_parser -r /var/lib/snapd/apparmor/profiles/snap.docker.docker
 ```
+## Service Mash
+### Linkerd
+There are two primary ways to install Linkerd as a service mesh: via Helm charts or the Linkerd CLI. In this project, I will use Helm charts for installation and the Linkerd CLI to inject the proxy. A prerequisite for installing Linkerd using Helm, as opposed to the CLI, is the creation of certificates for mutual TLS (mTLS). For certificate management, I will utilize `step`.
+To install `step` and create the required certificates:
+```
+wget https://dl.smallstep.com/cli/docs-cli-install/latest/step-cli_amd64.deb
+sudo dpkg -i step-cli_amd64.deb
+step certificate create root.linkerd.cluster.local ca.crt ca.key --profile root-ca --no-password --insecure
+step certificate create identity.linkerd.cluster.local issuer.crt issuer.key --profile intermediate-ca --not-after 8760h --no-password --insecure --ca ca.crt --ca-key ca.key
+```
+Next, let's install the Linkerd CLI
+```
+curl --proto '=https' --tlsv1.2 -sSfL https://run.linkerd.io/install | sh
+export PATH=$HOME/.linkerd2/bin:$PATH
+```
+To install Linkerd on your Kubernetes cluster using Helm, you will need to install two separate charts in succession: [linkerd-crds](https://artifacthub.io/packages/helm/linkerd2/linkerd-crds) and [linkerd-control-plane](https://artifacthub.io/packages/helm/linkerd2/linkerd-control-plane). Additionally, since the nodes in this cluster use the Docker container runtime, the proxy-init container must run with root privileges.
+```
+helm repo add linkerd https://helm.linkerd.io/edge
+helm repo update
+helm install linkerd-crds linkerd-edge/linkerd-crds -n linkerd --create-namespace
+helm install linkerd-control-plane linkerd-edge/linkerd-control-plane -n linkerd --create-namespace --set-file identityTrustAnchorsPEM=certificates/ca.crt --set-file identity.issuer.tls.crtPEM=certificates/issuer.crt --set-file identity.issuer.tls.keyPEM=certificates/issuer.key --set runAsRoot=true
+```
+**Note:** The stable version of Linkerd does not include the `externalworkloads.workload.linkerd.io` CRD, which may cause the `linkerd check` command to fail, as it checks components based on the edge release. To resolve this, you can manually install the missing CRD by generating the manifest with the command `linkerd install --crds`, copying the CRD definitions into a YAML file, and deploying it manually. 
+Once installed, you can apply Linkerd to Kubernetes resources by adding specific annotations via Linkerd CLI
+```
+kubectl get -n vastaya deploy -o yaml | linkerd inject - | kubectl apply -f 
+```
+Or kubectl
+```
+kubectl annotate namespace vastaya linkerd.io/inject=enabled
+```
 ## Ingress Setup
 The application utilizes multiple Ingress resources to expose services outside the Kubernetes cluster. The chosen Ingress controller is NGINX. To install it, first add the NGINX Ingress Helm repository and install the controller using the following commands:
 ```
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
-helm install ingress-nginx ingress-nginx/ingress-nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx --values ./helm/nginx/values.yaml --create-namespace --namespace nginx
 ```
+**Note:** In the `values.yaml` we will define the annotations needed to enable linekrd and collect mTLS and L7 metrics when the traffic enters the cluster.
 Next, create a route to the services deployed with the LoadBalancer type and update the `/etc/hosts` file to resolve domain names locally:
 ```
 minikube tunnel --alsologtostderr 
-kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
+kubectl get ingress application-vastaya-ing -n vastaya -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} vastaya.tech" >> /etc/hosts'
 ```
-
 ## Development
 First, you need to configure the environment variables in the `.env` file. Replace the Kubernetes-specific values with localhost URLs for local development. For example:
 ```
@@ -92,7 +120,6 @@ npm install
 npm start
 ```
 This setup will ensure that your React.JS application and APIs are correctly configured for local development.
-
 ## Deployment
 ### Podman
 Build the Podman image:
@@ -118,17 +145,16 @@ docker run application:latest -p 8080:80
 ```
 sudo bash -c 'echo "unqualified-search-registries = [\"docker.io\"]" >> /etc/containers/registries.conf'
 ```
-## Helm
+### Helm
 Once the image is build, you can install the helm chart using the image in the Kubernetes cluster
 ```
 cd ~/application
-helm install application --values ./helm/values.yaml ../helm/ --create-namespace --namespace vastaya
+helm install application --values ./helm/values.yaml ../helm/custom/ --create-namespace --namespace vastaya
 ```
 **Note**: Since each API will have its own host, you’ll need to update the `/etc/hosts` file accordingly:
 ```
 kubectl get ingress application-ingress -o jsonpath='{.status.loadBalancer.ingress[0].ip}' | xargs -I{} sudo sh -c 'echo "{} projects.vastaya.tech" >> /etc/hosts'
 ```
-
 ## Automation
 ### Bots
 The `/bot` directory contains several Kubernetes Job and CronJob resources designed to simulate traffic to the application for demonstration purposes. To deploy these resources, navigate to the /bots directory and apply the configurations:
@@ -136,7 +162,6 @@ The `/bot` directory contains several Kubernetes Job and CronJob resources desig
 cd ~/bots
 kubectl apply -f .
 ```
-
 ## Monitoring
 To monitor CPU and memory usage, you can install Prometheus and Grafana. These tools will help you gather and visualize metrics from your Kubernetes cluster.
 ### Prometheus
@@ -156,7 +181,6 @@ export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/
 kubectl --namespace monitoring port-forward $POD_NAME 9090
 ```
 Nou can now access Prometheus at http://localhost:9090.
-
 ### Grafana
 Grafana provides powerful visualization capabilities for your metrics. To install Grafana using Helm, follow these steps:
 1. Add the Grafana Helm repository:
@@ -164,9 +188,9 @@ Grafana provides powerful visualization capabilities for your metrics. To instal
 helm repo add grafana https://grafana.github.io/helm-charts
 helm repo update
 ```
-2. Install Grafana:
+2. Install Grafana with a reverse proxy set up,:
 ```
-helm install grafana grafana/grafana --create-namespace --namespace monitoring
+helm install grafana grafana/grafana --values ./helm/grafana/values.yaml --create-namespace --namespace monitoring
 ```
 3. Access the Grafana dashboard: 
 - First, retrieve the admin password:
@@ -176,10 +200,9 @@ kubectl get secret --namespace monitoring grafana -o jsonpath="{.data.admin-pass
 - Then, forward the Grafana port to your local machine:
 ```
 export POD_NAME=$(kubectl get pods --namespace monitoring -l "app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana" -o jsonpath="{.items[0].metadata.name}")
-kubectl port-forward $POD_NAME 3000
+kubectl port-forward  --namespace monitoring $POD_NAME 3000
 ```
 You can now access Grafana at http://localhost:3000.
-
 4. Configure Grafana to use Prometheus as a data source:
 - Log in to Grafana using the retrieved admin password.
 - Navigate to Configuration (gear icon) → Data Sources.
@@ -191,42 +214,11 @@ http://prometheus-server.monitoring.svc.cluster.local
 ```
 - Save and test the configuration.
 This setup will allow you to monitor your application's CPU and memory usage effectively, and visualize the collected metrics using Grafana dashboards.
-
-## Service Mash
-
-### Linkerd
-There are two primary ways to install Linkerd as a service mesh: via Helm charts or the Linkerd CLI. In this project, I will use Helm charts for installation and the Linkerd CLI to inject the proxy. A prerequisite for installing Linkerd using Helm, as opposed to the CLI, is the creation of certificates for mutual TLS (mTLS). For certificate management, I will utilize `step`.
-**Note:** The certificate issuer must be an intermediate Certificate Authority (CA).
-
-To install `step` and create the required certificates:
+### Linekrd-viz
+Linekrd [Viz](https://artifacthub.io/packages/helm/linkerd2-edge/linkerd-viz)  is a powerfull extension that will allow to easily review the metrics collected by the Linkerd Proxies.
+**Note**: By default, this extension will install it's own version of Prometheus. In this case we have already installed it, so we need to update the chart so that Linkerd Viz is able to communicate with both Prometheus and Grafana.
 ```
-wget https://dl.smallstep.com/cli/docs-cli-install/latest/step-cli_amd64.deb
-sudo dpkg -i step-cli_amd64.deb
-step certificate create root.linkerd.cluster.local ca.crt ca.key --profile root-ca --no-password --insecure
-step certificate create identity.linkerd.cluster.local issuer.crt issuer.key --profile intermediate-ca --not-after 8760h --no-password --insecure --ca ca.crt --ca-key ca.key
-```
-Next, let's install the Linkerd CLI
-```
-curl --proto '=https' --tlsv1.2 -sSfL https://run.linkerd.io/install | sh
-export PATH=$HOME/.linkerd2/bin:$PATH
-```
-To install Linkerd on your Kubernetes cluster using Helm, you will need to install two separate charts in succession: [linkerd-crds](https://artifacthub.io/packages/helm/linkerd2/linkerd-crds) and [linkerd-control-plane](https://artifacthub.io/packages/helm/linkerd2/linkerd-control-plane). Additionally, since the nodes in this cluster use the Docker container runtime, the proxy-init container must run with root privileges.
-```
-helm repo add linkerd https://helm.linkerd.io/stable
-helm repo update
-helm install linkerd-crds linkerd/linkerd-crds -n linkerd --create-namespace
-helm install linkerd-crds linkerd-edge/linkerd-crds -n linkerd --create-namespace
-helm install linkerd-control-plane linkerd-edge/linkerd-control-plane -n linkerd --create-namespace --set-file identityTrustAnchorsPEM=certificates/ca.crt --set-file identity.issuer.tls.crtPEM=certificates/issuer.crt --set-file identity.issuer.tls.keyPEM=certificates/issuer.key --set runAsRoot=true
-```
-**Note:** The stable version of Linkerd does not include the `externalworkloads.workload.linkerd.io` CRD, which may cause the `linkerd check` command to fail, as it checks components based on the edge release. To resolve this, you can manually install the missing CRD by generating the manifest with the command `linkerd install --crds`, copying the CRD definitions into a YAML file, and deploying it manually.
-
-Once installed, you can apply Linkerd to Kubernetes resources by adding specific annotations. 
-```
-kubectl get -n vastaya deploy -o yaml | linkerd inject - | kubectl apply -f 
-```
-Next, install the Linkerd [Viz extension](https://artifacthub.io/packages/helm/linkerd2-edge/linkerd-viz) for monitoring and observability.
-```
-helm install linkerd-viz linkerd/linkerd-viz --create-namespace --namespace linkerd-viz 
+helm install linkerd-viz linkerd/linkerd-viz --values ./helm/linkerd-viz/values.yaml  --create-namespace --namespace linkerd-viz 
 ```
 After installation, it's recommended to restart your application deployments to ensure that the Viz extension can fully set up **tap**, which allows users to introspect live traffic.
 ```
@@ -239,6 +231,38 @@ linkerd viz dashboard
 ```
 ![Homepage](assets/linkerd_metrics.png)
 
+If you prefer get these metrics on the console you can run
+```
+linkerd viz stat deployment -n vastaya
+```
+You can also get an high-level, real-time overview of incoming and outgoing requests aggregated for the deployment
+```
+linkerd viz top -n vastaya deployment/comments-vastaya-dplmt
+```
+Or even get real-time, detailed, request-level information, similar to packet inspection but for HTTP/gRPC/TCP traffic.
+```
+linkerd viz tap ns vastaya
+```
+
+
+
+
+
+
+#### Canary
+The API project use the HTTP Routes provied by API Gateway and supported by Linekrd to direct the traffic to the image with tag canary running in the related deployemtn and server by the service with suffix canary.
+
+By default, the Nginx-controller uses all endpoints (pod IP/port) in the NGINX upstream configuration. By setting it to true, it will point to the service instead. The Nginx ingress will take care of the load balancing, and routing to the pods. However, since we want out API Gateway HTTP Route to 
+
+Meshing the Ingress will provide metrics about L7 and mTLS when the traffic enters the cluster.
+
+To integrate Linkerd with Nginx 
+
+## Database
+In this project, we will deploy a database outside the cluster. To do so, in a new terminal (so that it won't point to the registry inside the cluster) exeute the following:
+```
+docker run -d --name mysql -e MYSQL_ROOT_PASSWORD=secretPassword -e MYSQL_DATABASE=vastaya -p 3306:3306  mysql:8.0
+```
 
 <!-- # Prerequisites
 **MySQL Operator**

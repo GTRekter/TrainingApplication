@@ -18,9 +18,21 @@ app.use(bodyParser.json());
 let projects = [
     {
         id: 1,
-        name: "Mock Project",
-        description: "This is a mock project for demonstration purposes",
-        status: "open"
+        name: "Mock Project Canary 01",
+        description: "This is a mock project for demonstration purposes of Canary deployments",
+        status: "closed"
+    },
+    {
+        id: 2,
+        name: "Mock Project Canary 02",
+        description: "This is a mock project for demonstration purposes of Canary deployments",
+        status: "closed"
+    },
+    {
+        id: 3,
+        name: "Mock Project Canary 03",
+        description: "This is a mock project for demonstration purposes of Canary deployments",
+        status: "closed"
     }
 ];
 let nextProjectId = 2;
@@ -121,6 +133,7 @@ app.listen(port, () => {
     const datetime = new Date();
     const message = `Server running on Port: ${port}. Started at: ${datetime}`;
     console.log(message);
+    console.log('This is the canary deployment version');
 }).on('error', (err) => {
     console.error('Server error:', err);
 });

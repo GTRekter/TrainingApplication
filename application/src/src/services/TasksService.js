@@ -9,7 +9,16 @@ class TasksService {
                 'Access-Control-Allow-Origin':'*'
             }
         })
-        .then(res => res.json());
+        .then(res => {
+            if (!res.ok) {
+                throw new Error(`Failed to fetch tasks`);
+            }
+            return res.json();
+        })
+        .catch(err => {
+            console.error(err);
+            throw err;
+        });
     }
     getTasksByProjectId(projectId) {
         return fetch(`${process.env.REACT_APP_TASKS_API_URL}/projects/${projectId}`,{

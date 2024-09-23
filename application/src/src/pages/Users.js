@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import './users.css';
+import UsersService from '../services/UsersService';
 
 export default class Users extends Component {
     state = {
@@ -15,10 +16,9 @@ export default class Users extends Component {
     componentDidMount() {
         console.log("Fetching users from the API");
         console.log("API URL:", process.env.REACT_APP_USERS_API_URL);
-        fetch(process.env.REACT_APP_USERS_API_URL)
-            .then(res => res.json())
+        UsersService.getUsers()
             .then(users => this.setState({ users }))
-            .catch(error => console.error('Error fetching users:', error));
+            .catch(error => console.error('Error fetching projects:', error));
     }
 
     onClickEditUser(userId) {
