@@ -83,7 +83,7 @@ The application utilizes multiple Ingress resources to expose services outside t
 ```
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
-helm install ingress-nginx ingress-nginx/ingress-nginx --values ./helm/nginx/values.yaml --create-namespace --namespace nginx
+helm install ingress-nginx ingress-nginx/ingress-nginx --values ./helm/nginx/values.yaml 
 ```
 **Note:** In the `values.yaml` we will define the annotations needed to enable linekrd and collect mTLS and L7 metrics when the traffic enters the cluster.
 Next, create a route to the services deployed with the LoadBalancer type and update the `/etc/hosts` file to resolve domain names locally:
@@ -257,6 +257,14 @@ By default, the Nginx-controller uses all endpoints (pod IP/port) in the NGINX u
 Meshing the Ingress will provide metrics about L7 and mTLS when the traffic enters the cluster.
 
 To integrate Linkerd with Nginx 
+
+Linkerd Policy HTTPRoute was created to allow users usering versions previous 2.14, but with 2.14 we can use gateway.networking.k8s.io/v1beta1 HTTRoutes.
+
+
+
+
+
+
 
 ## Database
 In this project, we will deploy a database outside the cluster. To do so, in a new terminal (so that it won't point to the registry inside the cluster) exeute the following:

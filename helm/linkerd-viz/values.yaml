@@ -1,5 +1,5 @@
-grafana:
-  url: grafana.grafana:3000
+# grafana:
+#   url: grafana.grafana:3000
 
-prometheus:
-  enabled: false
+# prometheus:
+#   enabled: false

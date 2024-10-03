@@ -1,7 +1,7 @@
-# IMPORTANT
-# When you start a NGINX ingress resource, it creates a short live pod named ingress-nginx-admission-create-xxxxx. Injecting Linkerd proxy in this pod will prevent it from terminate.
-# The following configuration will mesh just the ingress-controller pod.
+
 controller:
   podAnnotations:
+    # IMPORTANT
+    # When you start a NGINX ingress resource, it creates a short live pod named ingress-nginx-admission-create-xxxxx. Injecting Linkerd proxy in this pod will prevent it from terminate.
+    # The following configuration will mesh just the ingress-controller pod.
     linkerd.io/inject: enabled
-#     nginx.ingress.kubernetes.io/service-upstream: true
